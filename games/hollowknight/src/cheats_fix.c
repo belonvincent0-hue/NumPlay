@@ -334,6 +334,7 @@ bool cheats_menu(uint32_t keys) {
       return false;
     }
     g_open = true, g_msg = "", g_dirty = true;
+    pressed = 0;   /* (this press opened the menu: it is not one to close it too) */
   }
   const uint32_t dirs = K_UP | K_DOWN | K_LEFT | K_RIGHT;
   if (keys & dirs) {
