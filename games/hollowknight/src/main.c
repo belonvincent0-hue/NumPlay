@@ -3,6 +3,7 @@
  * Inspired by Hollow Knight, not affiliated with Team Cherry.
  * Made by Mason Chen as part of NumPlay. */
 #include "game.h"
+#include "cheats.h"
 
 #ifndef HOST
 const char eadk_app_name[] __attribute__((section(".rodata.eadk_app_name"))) = "Hollow Knight";
@@ -122,16 +123,27 @@ static int run(void) {
       break;
     }
     if (menu_quit()) break;
+    /* (the cheat menu: the game stops while it is up) */
+    if (cheats_menu(keys)) {
+      last = plat_millis(), acc = 0;
+      plat_sleep(TICK_MS);
+      continue;
+    }
+    keys = cheats_keys(keys);
+    uint32_t tick_ms = cheats_tick_ms();
     uint32_t now = plat_millis();
     acc += now - last, last = now;
     int ticks = 0;
-    while (acc >= TICK_MS && ticks < MAX_TICKS) {
-      if (!menu_tick(keys)) game_tick(stag_tick(shop_tick(inv_tick(keys))));
-      acc -= TICK_MS, ticks++, perf_updates++;
+    while (acc >= tick_ms && ticks < MAX_TICKS) {
+      if (!menu_tick(keys) && cheats_run_tick()) {
+        game_tick(stag_tick(shop_tick(inv_tick(keys))));
+        cheats_tick();
+      }
+      acc -= tick_ms, ticks++, perf_updates++;
     }
     if (ticks == MAX_TICKS) acc = 0;   /* (too slow to catch up: the game slows down instead) */
     if (!ticks) {
-      plat_sleep(TICK_MS - acc);
+      plat_sleep(tick_ms - acc);
       continue;
     }
     /* (the game, or the title screen and the save profiles alone; the pause menu over the game) */
@@ -139,6 +151,7 @@ static int run(void) {
     if (menu_in_game()) game_draw_layers();
     menu_draw();
     gfx_frame();
+    cheats_overlay();
     perf_frames++;
     if (menu_in_game()) {
       avg8 = avg8 - avg8 / 8 + (plat_millis() - now);
