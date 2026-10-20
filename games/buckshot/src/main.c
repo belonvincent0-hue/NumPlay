@@ -8,6 +8,7 @@
 #include "game.h"
 #include "scene.h"
 #include "story.h"
+#include "cheats.h"
 
 #ifdef __ELF__ /* app name and API level, for the calculator's installer */
 const char eadk_app_name[] __attribute__((section(".rodata.eadk_app_name"))) = "Buckshot";
@@ -133,6 +134,15 @@ int key_wait(int ms) {
     else if (e >= 180 && e <= 205) k = KEY_LETTER + e - 180, key = LETTER_KEY[e - 180];
     else continue;
     if (key == 12 || key == 13) continue; /* Shift and Alpha on their own */
+    if (k == CHEAT_KEY && in_match && !cheats_active()) {
+      /* the cheat menu (EXP): the match waits, and so does this wait */
+      uint64_t t0 = eadk_timing_millis();
+      cheats_menu();
+      end += eadk_timing_millis() - t0;
+      held_key = key;
+      held_t = eadk_timing_millis();
+      continue;
+    }
     uint64_t now = eadk_timing_millis();
     if (key == held_key) {
       /* not released since: only arrows and Backspace repeat, and not too fast */
