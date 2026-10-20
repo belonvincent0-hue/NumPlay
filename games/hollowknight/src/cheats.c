@@ -289,9 +289,30 @@ void cheats_overlay(void) {
 }
 
 /* ---------------------------------------------------------------- the menu */
-static bool can_open(void) {
-  return menu_in_game() && !g_pd.disable_pause && !game_changing_room() && !inv_open() && !shop_open() && !stag_busy() &&
-         !msg_shown() && !dialogue_box_shown() && !collect_active() && !g_hero.cs.dead;
+/* the conditions for the menu to open: bit i set when condition i holds */
+#define N_COND 10
+static uint32_t conditions(void) {
+  uint32_t c = 0;
+  if (menu_in_game()) c |= 1u << 0;
+  if (!g_pd.disable_pause) c |= 1u << 1;
+  if (!game_changing_room()) c |= 1u << 2;
+  if (!inv_open()) c |= 1u << 3;
+  if (!shop_open()) c |= 1u << 4;
+  if (!stag_busy()) c |= 1u << 5;
+  if (!msg_shown()) c |= 1u << 6;
+  if (!dialogue_box_shown()) c |= 1u << 7;
+  if (!collect_active()) c |= 1u << 8;
+  if (!g_hero.cs.dead) c |= 1u << 9;
+  return c;
+}
+static bool can_open(void) { return conditions() == (1u << N_COND) - 1; }
+
+/* a test: the key was heard (blue square), then one square a condition: green holds, red blocks; kept 3 s */
+static void debug_flash(void) {
+  uint32_t c = conditions();
+  plat_fill(4, 4, 12, 12, RGB(0, 0, 255));
+  for (int i = 0; i < N_COND; i++) plat_fill(24 + i * 18, 4, 12, 12, (c >> i & 1) ? RGB(0, 255, 0) : RGB(255, 0, 0));
+  plat_sleep(3000);
 }
 
 uint32_t cheats_keys(uint32_t keys) {
@@ -307,7 +328,11 @@ bool cheats_menu(uint32_t keys) {
   g_prev = keys;
   if (pressed & K_STEP) g_step = true;
   if (!g_open) {
-    if (!(pressed & K_CHEAT) || !can_open()) return false;
+    if (!(pressed & K_CHEAT)) return false;
+    if (!can_open()) {
+      debug_flash();
+      return false;
+    }
     g_open = true, g_msg = "", g_dirty = true;
   }
   const uint32_t dirs = K_UP | K_DOWN | K_LEFT | K_RIGHT;
