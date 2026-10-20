@@ -8,7 +8,7 @@ Q ?= @
 CC = arm-none-eabi-gcc
 NWLINK = npx --yes -- nwlink@1.0.0
 BUILD_DIR = output
-SRC = src/main.c src/game.c src/scene.c src/anim.c src/story.c src/gfx.c src/pixcode.c src/assets.c src/font.c src/libc.c
+SRC = src/main.c src/game.c src/scene.c src/anim.c src/story.c src/gfx.c src/pixcode.c src/assets.c src/font.c src/libc.c src/cheats.c
 HDR = $(wildcard src/*.h)
 
 CFLAGS = -std=c99 $(shell $(NWLINK) eadk-cflags-device)
