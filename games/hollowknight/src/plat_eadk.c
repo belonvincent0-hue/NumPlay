@@ -22,6 +22,8 @@ uint32_t plat_keys(void) {
   if (k & KEY(eadk_key_toolbox)) r |= K_INV;
   if (k & KEY(eadk_key_var)) r |= K_MAP;
   if (k & (KEY(eadk_key_home) | KEY(eadk_key_on_off))) r |= K_HOME;
+  if (k & KEY(eadk_key_exp)) r |= K_CHEAT;
+  if (k & KEY(eadk_key_ln)) r |= K_STEP;
   if (k) r |= K_ANY;
   return r;
 }
