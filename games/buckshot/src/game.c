@@ -7,6 +7,7 @@
 #include "game.h"
 #include "scene.h"
 #include "story.h"
+#include "cheats.h"
 #include <eadk.h>
 
 match_t G;
@@ -96,6 +97,7 @@ static void heal(int side, int n) {
 
 /* damage to someone: returns 1 if that ended the stage */
 static int hurt(int side, int n) {
+  if (side == 0 && cheat_on(CH_GOD)) return 0; /* (cheat: the player takes no damage) */
   G.hp[side] -= n;
   if (G.hp[side] <= 0) {
     G.hp[side] = 0;
@@ -108,6 +110,7 @@ static int hurt(int side, int n) {
 
 /* The end of a turn: the saw wears off, then whoever plays next (or a new load). */
 static void end_turn(int player_next) {
+  if (cheat_on(CH_DSKIP)) player_next = 1; /* (cheat: the Dealer never plays) */
   G.sawed = 0;
   G.dturn = 0;
   if (!G.nshell) G.phase = PH_LOAD, G.loaded = 0;
@@ -193,6 +196,7 @@ static int choose(int *cur) {
     T.view = *cur >= 16 ? V_DEALER : V_TABLE;
     cursor_desc();
     T.hint = *cur >= 16 ? T("THE DEALER'S ITEM   DOWN: BACK") : T("OK: USE   BACK: PAUSE");
+    if (*cur < 16 && G.nshell && cheat_on(CH_PEEK)) T.hint = cheat_peek_hint();
     table_show();
     int k = key_wait(-1);
     if (IS_OK(k)) {
@@ -325,7 +329,8 @@ static void use_item(int side, int it, int from) {
 /* The shotgun is picked up: aim at the Dealer (up) or yourself (down), fire. */
 static void player_shoot(void) {
   int self = anim_player_aim();
-  int live = G.shell[0], dmg = G.sawed ? 2 : 1, ended = 0;
+  cheat_before_player_shot();
+  int live = G.shell[0], dmg = (G.sawed || cheat_on(CH_SAW)) ? 2 : 1, ended = 0;
   if (live) G.shots++;
   eject();
   if (live) ended = hurt(self ? 0 : 1, dmg);
@@ -363,6 +368,7 @@ static void player_turn(void) {
     int it = G.items[0][sel];
     G.items[0][sel] = IT_NONE;
     use_item(WHO_PLAYER, it, sel);
+    if (cheat_on(CH_INFITEMS) && it != IT_ADREN && G.items[0][sel] < 0) G.items[0][sel] = (int8_t)it; /* (cheat) */
     if (G.phase != PH_PLAYER) return;
   }
 }
@@ -406,6 +412,7 @@ static int list_items(int side, int *slots) {
 }
 
 static void dealer_shoot(int who) {
+  cheat_before_dealer_shot(who == PLAYER);
   int live = G.shell[0], dmg = G.sawed ? 2 : 1, ended = 0;
   if (live) G.shots++;
   eject();
