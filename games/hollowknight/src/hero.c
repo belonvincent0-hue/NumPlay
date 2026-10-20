@@ -2,6 +2,7 @@
  * as a Unity frame: FixedUpdate, the physics step and its collision callbacks, Update, then the animation. */
 #include <math.h>
 #include "game.h"
+#include "cheats.h"
 
 /* HeroController's values (the Knight prefab) and constants */
 #define RUN_SPEED 8.3f
@@ -786,7 +787,9 @@ void hero_fixed(uint32_t keys) {
   h->time_since_level += DT;
   fixed_update();
   slash_fixed();
-  body_step(&h->body, DT);
+  if (cheat_moonjump() && (keys & K_JUMP) && h->accepting_input && !h->cs.dead) h->body.vy = JUMP_SPEED * 0.9f;
+  if (cheat_noclip()) cheat_noclip_move(&h->body, keys, DT);
+  else body_step(&h->body, DT);
   for (int i = 0; i < h->body.nevents; i++) {
     const BodyEvent *e = &h->body.events[i];
     if (e->kind == EV_ENTER) on_enter(e);
@@ -1304,6 +1307,9 @@ void hero_take_damage(int side, int damage, int hazard) {
   Hero *h = &g_hero;
   if (damage <= 0) return;
   if (h->parry_t > 0 && hazard == HAZ_NORMAL) return;
+  /* (cheat: invincible: only the hazards that send him back still do, without hurting) */
+  const bool god = cheat_invincible();
+  if (god && hazard != HAZ_SPIKES && hazard != HAZ_ACID && hazard != HAZ_PIT) return;
   if (can_take_damage()) {
     spell_cancel();   /* (HERO DAMAGED) */
     map_cancel();
@@ -1313,7 +1319,7 @@ void hero_take_damage(int side, int damage, int hazard) {
     cancel_attack();
     if (h->cs.recoiling_left || h->cs.recoiling_right) cancel_recoil_horizontal();
     if (h->cs.bouncing) cancel_bounce(), h->body.vy = 0;
-    take_health(pd_flag(PDF_OVERCHARMED) ? damage * 2 : damage);
+    if (!god) take_health(pd_flag(PDF_OVERCHARMED) ? damage * 2 : damage);
     take_damage_charm_effects(damage);
     fury_check();
     if (g_pd.health == 0) {
@@ -1324,7 +1330,7 @@ void hero_take_damage(int side, int damage, int hazard) {
     else if (hazard != HAZ_LAVA) start_recoil(side);
   } else if (h->cs.invulnerable && !h->cs.hazard_death && (hazard == HAZ_SPIKES || hazard == HAZ_ACID)) {
     /* (spikes and acid hurt even through invulnerability) */
-    take_health(damage);
+    if (!god) take_health(damage);
     take_damage_charm_effects(damage);
     vm_broadcast(VMEV_HERO_DAMAGED);   /* (HeroCtrl-HeroDamaged) */
     fury_check();
