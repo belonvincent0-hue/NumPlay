@@ -25,6 +25,7 @@ enum {
   K_LEFT = 1, K_RIGHT = 2, K_UP = 4, K_DOWN = 8,
   K_JUMP = 16, K_ATTACK = 32, K_FOCUS = 64, K_SPELL = 128, K_DASH = 256,
   K_OK = 512, K_BACK = 1024, K_PAUSE = 2048, K_MAP = 4096, K_INV = 8192, K_HOME = 16384, K_ANY = 32768,
+  K_CHEAT = 65536, K_STEP = 131072,
 };
 uint32_t plat_keys(void);
 uint32_t plat_millis(void);
