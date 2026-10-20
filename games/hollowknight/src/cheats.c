@@ -294,7 +294,7 @@ void cheats_overlay(void) {
 static uint32_t conditions(void) {
   uint32_t c = 0;
   if (menu_in_game()) c |= 1u << 0;
-  if (!g_pd.disable_pause) c |= 1u << 1;
+  c |= 1u << 1;   /* (disable_pause is not asked: the game keeps it on in some scenes, and the menu is no pause menu) */
   if (!game_changing_room()) c |= 1u << 2;
   if (!inv_open()) c |= 1u << 3;
   if (!shop_open()) c |= 1u << 4;
@@ -307,12 +307,12 @@ static uint32_t conditions(void) {
 }
 static bool can_open(void) { return conditions() == (1u << N_COND) - 1; }
 
-/* a test: the key was heard (blue square), then one square a condition: green holds, red blocks; kept 3 s */
+/* a test: the key was heard (blue square), then one square a condition: green holds, red blocks; kept 1.5 s */
 static void debug_flash(void) {
   uint32_t c = conditions();
   plat_fill(4, 4, 12, 12, RGB(0, 0, 255));
   for (int i = 0; i < N_COND; i++) plat_fill(24 + i * 18, 4, 12, 12, (c >> i & 1) ? RGB(0, 255, 0) : RGB(255, 0, 0));
-  plat_sleep(3000);
+  plat_sleep(1500);
 }
 
 uint32_t cheats_keys(uint32_t keys) {
