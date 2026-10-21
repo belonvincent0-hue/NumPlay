@@ -1,5 +1,6 @@
 /* The bullet board: the SOUL, the bullets, what hurts (battle.h). */
 #include <string.h>
+#include "cheats.h"
 #include "battle.h"
 #include "game.h"
 #include "gfx.h"
@@ -203,9 +204,10 @@ int damage_to_player(int at) {
 
 void soul_hurt(int dmg, int color) {
   (void)color;
-  if (bt.inv) return;
+  if (bt.inv || ch_god) return;
   sv.hp = (int16_t)(sv.hp - dmg);
   if (sv.hp < 0) sv.hp = 0;
+  if (ch_hp && sv.hp < 1) sv.hp = 1; /* (cheat) */
   bt.inv = 30;
 }
 
