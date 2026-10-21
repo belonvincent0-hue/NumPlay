@@ -1,6 +1,10 @@
 /* Main loop: fixed 240 Hz physics, one rendered frame per loop iteration,
  * drawn in horizontal strips straight to the LCD. */
 #include "app.h"
+#include "cheats.h"
+#if PLATFORM_DEVICE
+#include "../../common/np_cheat.h"
+#endif
 #if PLATFORM_DEVICE
 #include <eadk.h>
 const char eadk_app_name[] __attribute__((section(".rodata.eadk_app_name"))) = "NumDash";
@@ -24,11 +28,21 @@ int main(int argc, char **argv) {
   app_init();
   uint32_t prev = platform_millis(), acc = 0, fps_start = prev, frames = 0, pending = 0, render_ms = 30;
   while (app.running) {
+#if PLATFORM_DEVICE
+    if (np_cheat_key()) { /* the cheat menu (EXP): the game waits */
+      if (cheats_menu()) { /* Home in the menu */
+        app.running = false;
+        break;
+      }
+      prev = platform_millis(), acc = 0, pending = 0;
+      continue;
+    }
+#endif
     uint32_t now = platform_millis(), elapsed = now - prev;
     prev = now;
     /* never advance further than the player could have seen */
     if (elapsed > 50) elapsed = 50;
-    acc += elapsed * ND_HZ;
+    acc += elapsed * ND_HZ * cheats_speed_pct() / 100;
     uint32_t keys = platform_keys();
     if (acc < 1000) {
       pending |= keys;
