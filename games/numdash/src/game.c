@@ -6,6 +6,7 @@
  * measurements of GD 2.2 for the robot, spider, swing and the ring / pad
  * table. Velocities are in GD units per second, "vy" is relative to the
  * current gravity. */
+#include "cheats.h"
 #include "game.h"
 #include <math.h>
 #include <string.h>
@@ -103,6 +104,7 @@ static void kill(Game *g, int obj) {
 #ifdef ND_PROBE
   if (nd_noclip) { if (nd_on_kill) nd_on_kill(g, obj); return; }
 #endif
+  if (ch_noclip || ch_force > 0) return; /* (cheat) */
   if (g->dead) return;
   g->dead = true;
   g->death_obj = obj < 0 ? 0xffff : (uint16_t)obj;
