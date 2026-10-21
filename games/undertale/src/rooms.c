@@ -1,5 +1,6 @@
 /* The rooms' objects and their random encounters. */
 #include <stddef.h>
+#include "cheats.h"
 #include "battle.h"
 #include "event.h"
 #include "events.h"
@@ -97,7 +98,7 @@ static int steps_left = 120;
 bool g_no_encounters;   /* (the tests' --noenc) */
 
 void encounter_step(void) {
-  if (!pl.moving || g_no_encounters) return;
+  if (!pl.moving || g_no_encounters || ch_noenc) return;
   const Encounters *e = NULL;
   for (unsigned i = 0; i < sizeof enc / sizeof enc[0]; i++)
     if (enc[i].room == g_room) e = &enc[i];
