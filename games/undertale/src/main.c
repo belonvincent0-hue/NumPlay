@@ -9,6 +9,10 @@
 #include "gfx.h"
 #include "plat.h"
 #include "res.h"
+#include "cheats.h"
+#ifndef HOST
+#include "../../common/np_cheat.h"
+#endif
 
 #ifndef HOST
 const char eadk_app_name[] __attribute__((section(".rodata.eadk_app_name"))) = "Undertale";
@@ -29,10 +33,22 @@ int main(void) {
     /* the game's frames: drawn when caught up (at most 2 updates per drawing) */
     int n = 0;
     uint32_t now = plat_millis() * 3;
+    /* the cheat menu (EXP): the game waits */
+    if (np_cheat_key() && (g_mode == MODE_WORLD || g_mode == MODE_BATTLE)) {
+      if (cheats_menu()) { /* Home in the menu: as Home in the game */
+        game_quit_save();
+        break;
+      }
+      next = plat_millis() * 3;
+      now = next;
+    }
     while ((int32_t)(now - next) >= 0 && n < 2 && g_running) {
-      game_frame(plat_keys());
+      if (cheats_run_frame()) {
+        game_frame(plat_keys());
+        cheats_tick();
+      }
       perf_updates++;
-      next += 100;
+      next += cheats_frame_len();
       n++;
     }
     if (!g_running) break;
