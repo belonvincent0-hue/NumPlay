@@ -27,7 +27,7 @@ typedef struct {
   int *value;                 /* toggle: 0 or 1; cycle: 0 .. count - 1 */
   int count;                  /* cycle: how many values */
   const char *const *labels;  /* cycle: the label of each value (or 0: the number) */
-  const char *(*run)(void);   /* action: what it does; returns a line to show */
+  const char *(*run)(void);   /* action: what it does; returns a line to show (a cycle with one: OK runs it) */
 } np_cheat_t;
 
 #define NPC_RGB(r, g, b) ((uint16_t)((((r) & 0xF8) << 8) | (((g) & 0xFC) << 3) | ((b) >> 3)))
@@ -62,11 +62,11 @@ static const uint8_t npc_font[59][5] = {
     {0x07, 0x08, 0x70, 0x08, 0x07}, {0x61, 0x51, 0x49, 0x45, 0x43},
 };
 
-static void npc_fill(int x, int y, int w, int h, uint16_t c) {
+static inline void npc_fill(int x, int y, int w, int h, uint16_t c) {
   eadk_rect_t r = {(uint16_t)x, (uint16_t)y, (uint16_t)w, (uint16_t)h};
   eadk_display_push_rect_uniform(r, c);
 }
-static void npc_glyph(int x, int y, char ch, uint16_t fg, uint16_t bg) {
+static inline void npc_glyph(int x, int y, char ch, uint16_t fg, uint16_t bg) {
   if (ch >= 'a' && ch <= 'z') ch = (char)(ch - 32);
   if (ch < 32 || ch > 90) ch = '?';
   const uint8_t *g = npc_font[ch - 32];
@@ -79,10 +79,10 @@ static void npc_glyph(int x, int y, char ch, uint16_t fg, uint16_t bg) {
   eadk_rect_t r = {(uint16_t)x, (uint16_t)y, 12, 16};
   eadk_display_push_rect(r, buf);
 }
-static void npc_text(int x, int y, const char *s, uint16_t fg, uint16_t bg) {
+static inline void npc_text(int x, int y, const char *s, uint16_t fg, uint16_t bg) {
   for (; *s; s++, x += 12) npc_glyph(x, y, *s, fg, bg);
 }
-static void npc_num(char *out, int v) {
+static inline void npc_num(char *out, int v) {
   char t[12];
   int n = 0, k = 0;
   unsigned u = v < 0 ? (unsigned)-v : (unsigned)v;
@@ -94,7 +94,7 @@ static void npc_num(char *out, int v) {
 }
 
 /* EXP pressed anew (call it once per frame) */
-static bool np_cheat_key(void) {
+static inline bool np_cheat_key(void) {
   static bool held;
   bool down = eadk_keyboard_key_down(eadk_keyboard_scan(), eadk_key_exp);
   bool edge = down && !held;
@@ -102,7 +102,7 @@ static bool np_cheat_key(void) {
   return edge;
 }
 
-static void npc_draw(const char *title, const np_cheat_t *list, int n, int sel, int top, const char *msg) {
+static inline void npc_draw(const char *title, const np_cheat_t *list, int n, int sel, int top, const char *msg) {
   npc_fill(10, 6, 300, 228, NPC_BG);
   npc_fill(10, 6, 300, 1, NPC_TXT), npc_fill(10, 233, 300, 1, NPC_TXT);
   npc_fill(10, 6, 1, 228, NPC_TXT), npc_fill(309, 6, 1, 228, NPC_TXT);
@@ -132,15 +132,15 @@ static void npc_draw(const char *title, const np_cheat_t *list, int n, int sel, 
   npc_text(20, 214, "OK:VALIDER RETOUR:FERMER", NPC_DIM, NPC_BG);
 }
 
-static bool npc_down(uint64_t s, eadk_key_t k) { return eadk_keyboard_key_down(s, k); }
+static inline bool npc_down(uint64_t s, eadk_key_t k) { return eadk_keyboard_key_down(s, k); }
 /* wait for the keys to be let go (so that the game does not read them as presses) */
-static void npc_release(void) {
+static inline void npc_release(void) {
   uint64_t end = eadk_timing_millis() + 700;
   while (eadk_keyboard_scan() != 0 && (int64_t)(end - eadk_timing_millis()) > 0) eadk_timing_msleep(10);
 }
 
 /* the menu: returns 1 if Home or On/Off was pressed (the game should quit), else 0 once it is closed */
-static int np_cheat_menu(const char *title, const np_cheat_t *list, int n) {
+static inline int np_cheat_menu(const char *title, const np_cheat_t *list, int n) {
   static const eadk_key_t K[8] = {eadk_key_up, eadk_key_down, eadk_key_left, eadk_key_right, eadk_key_ok, eadk_key_exe, eadk_key_back, eadk_key_exp};
   int sel = 0, top = 0;
   const char *msg = "";
@@ -174,8 +174,8 @@ static int np_cheat_menu(const char *title, const np_cheat_t *list, int n) {
       }
       if (press & 0x30) { /* OK, EXE */
         if (c->kind == NPC_TOGGLE) *c->value ^= 1;
-        else if (c->kind == NPC_CYCLE) *c->value = (*c->value + 1) % c->count;
-        else if (c->run) {
+        else if (c->kind == NPC_CYCLE && !c->run) *c->value = (*c->value + 1) % c->count;
+        else if (c->run) { /* an action, or a cycle that OK runs (Left/Right choose its value) */
           const char *m = c->run();
           msg = m ? m : "";
         }
