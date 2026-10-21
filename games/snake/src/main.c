@@ -15,6 +15,7 @@
 #include "../../common/epsilon_app.h"
 #include "../../common/epsilon_files.h"
 #include "../../common/np_text.h"
+#include "../../common/np_cheat.h"
 
 #ifdef __ELF__ /* app name and API level, for the calculator's installer */
 const char eadk_app_name[] __attribute__((section(".rodata.eadk_app_name"))) = "Snake";
@@ -183,6 +184,11 @@ static apple_t ap[8];
 static int score, wpop, gate[3][2], nstep, acc; /* gate: each pair's portals last used; acc: ms into the step */
 static uint32_t now, wborn, chew_t, lit_t, seed;
 
+/* cheats (the menu opens with EXP) */
+static int ch_ghost, ch_speed, ch_mult;
+static const uint16_t CH_SPEED_PCT[4] = {100, 200, 350, 60}; /* a step lasts this much of its time */
+static const uint8_t CH_MULT[4] = {1, 2, 5, 10};            /* points for a fruit */
+
 static uint32_t rnd(void) {
   seed ^= seed << 13;
   seed ^= seed >> 17;
@@ -190,12 +196,12 @@ static uint32_t rnd(void) {
   return seed;
 }
 static int at(int p) { return (p >> 8) * bw + (p & 255); }
-static int step_ms(void) { return STEP_MS[V.opt[O_SPEED]]; }
+static int step_ms(void) { return STEP_MS[V.opt[O_SPEED]] * CH_SPEED_PCT[ch_speed] / 100; }
 static uint16_t *best(void) {
   return &V.best[((MODE * 3 + V.opt[O_COUNT]) * 3 + V.opt[O_SPEED]) * 3 + V.opt[O_SIZE]];
 }
 static bool solid(snake_t *s, int k) { return !(s->ndir[k % MAXN] & 4); }
-static bool wraps(void) { return MODE == M_BORDERLESS || MODE == M_PEACEFUL; }
+static bool wraps(void) { return MODE == M_BORDERLESS || MODE == M_PEACEFUL || ch_ghost; }
 
 static bool far(int p, int h) { return iabs((p & 255) - (h & 255)) + iabs((p >> 8) - (h >> 8)) > 2; }
 /* a cell for fruit or a wall: free, and (first try) not right by a head,
@@ -297,7 +303,7 @@ static void statue(snake_t *s) {
 
 static void eat(int k, apple_t *a) {
   snake_t *s = &S[k];
-  a->eat = 1, score++, s->grow++, lit_t = now;
+  a->eat = 1, score += CH_MULT[ch_mult], s->grow++, lit_t = now;
   if (a->kind) {
     for (int j = 0; j < 8; j++)
       if (&ap[j] != a && ap[j].live && !ap[j].eat && ap[j].kind == a->kind) s->hop = gate[a->kind - 1][1] = ap[j].p, ap[j].eat = 2;
@@ -379,7 +385,7 @@ static bool step(void) {
     moving[k] = !s->grow;
     c[k] = at(np[k]);
   }
-  if (MODE != M_PEACEFUL) {
+  if (MODE != M_PEACEFUL && !ch_ghost) {
     for (int k = 0; k < ns; k++) {
       int n = occ[c[k]] & O_BODY;
       for (int j = 0; j < ns; j++) /* a tail that goes away as the head comes */
@@ -1092,6 +1098,25 @@ static const uint32_t DIR_KEYS[4] = {KEY(eadk_key_right) | KEY(eadk_key_six), KE
                                      KEY(eadk_key_left) | KEY(eadk_key_four), KEY(eadk_key_up) | KEY(eadk_key_eight)};
 static const uint8_t OPT_DEF[NOPT] = {0, 0, 0, 0, 0, 0, 0};
 
+/* ---- the cheat menu */
+static const char *ch_plus10(void) {
+  score += 10;
+  return "SCORE +10";
+}
+static const char *ch_grow(void) {
+  for (int k = 0; k < ns; k++) S[k].grow += 5;
+  return "SERPENT +5";
+}
+static const char *const CH_SPEED_NAMES[4] = {"NORMALE", "LENT", "TRES LENT", "RAPIDE"};
+static const char *const CH_MULT_NAMES[4] = {"X1", "X2", "X5", "X10"};
+static const np_cheat_t CHEATS[] = {
+    {"FANTOME (JAMAIS MORT)", NPC_TOGGLE, &ch_ghost, 0, 0, 0},
+    {"VITESSE", NPC_CYCLE, &ch_speed, 4, CH_SPEED_NAMES, 0},
+    {"POINTS PAR FRUIT", NPC_CYCLE, &ch_mult, 4, CH_MULT_NAMES, 0},
+    {"SCORE +10", NPC_ACTION, 0, 0, 0, ch_plus10},
+    {"SERPENT +5", NPC_ACTION, 0, 0, 0, ch_grow},
+};
+
 /* a turn for snake k (Yin Yang: the second turns the other way) */
 static void ask(int i) {
   for (int k = 0; k < ns; k++) {
@@ -1129,6 +1154,13 @@ int main(void) {
     uint32_t k = keys(), edge = k & ~held, hit = edge, arrows = DIR_KEYS[0] | DIR_KEYS[1] | DIR_KEYS[2] | DIR_KEYS[3];
     held = k;
     if (k & (KEY(eadk_key_home) | KEY(eadk_key_on_off))) break;
+    if (np_cheat_key() && (state == S_PLAY || state == S_READY || state == S_PAUSE)) {
+      if (np_cheat_menu("CHEATS SNAKE", CHEATS, 5)) break; /* Home in the menu */
+      if (state == S_PLAY) state = S_READY; /* it waits for a key: no surprise start */
+      full = true;
+      held = keys();
+      last = eadk_timing_millis();
+    }
     int dk = -1; /* a direction, repeated while held (menus) */
     if (hit & arrows) rep_t = now + 350;
     else if ((k & arrows) && (int)(now - rep_t) >= 0) hit |= k & arrows, rep_t = now + 90;
