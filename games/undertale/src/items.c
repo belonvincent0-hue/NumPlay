@@ -1,6 +1,7 @@
 /* Items: what they are and what using one does (items.h). Their texts are the game's. */
 #include <stdio.h>
 #include <string.h>
+#include "cheats.h"
 #include "game.h"
 #include "items.h"
 
@@ -125,7 +126,7 @@ void item_use(int slot, char *out, int cap, int in_battle) {
     case IT_ARMOR:
       if (id == ITEM_BANDAGE && sv.armor != ITEM_BANDAGE) {
         int n = snprintf(out, (size_t)cap, "%s", it->use);
-        item_remove_at(slot);
+        if (!ch_infitems) item_remove_at(slot);
         heal(it->heal, out + n, cap - n);
         return;
       } else {
@@ -148,7 +149,7 @@ void item_use(int slot, char *out, int cap, int in_battle) {
       }
       /* half a Bisicle is a Unisicle */
       if (id == ITEM_BISICLE) sv.items[slot] = ITEM_UNISICLE;
-      else item_remove_at(slot);
+      else if (!ch_infitems) item_remove_at(slot);
       if (it->heal >= 999) {
         sv.hp = sv.maxhp;
         snprintf(out + n, (size_t)(cap - n), "\n* Your HP was maxed out.");
