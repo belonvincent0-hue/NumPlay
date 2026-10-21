@@ -1,5 +1,6 @@
 /* The overworld: rooms, the camera, Frisk and the room's objects (world.h). */
 #include <string.h>
+#include "cheats.h"
 #include "event.h"
 #include "game.h"
 #include "gfx.h"
@@ -91,7 +92,7 @@ bool world_walkable(int x, int y, int w, int h, int ignore) {
   return true;
 }
 
-static bool player_free(int x, int y) { return world_walkable(x + PBX, y + PBY, PBW, PBH, -1); }
+static bool player_free(int x, int y) { return ch_noclip || world_walkable(x + PBX, y + PBY, PBW, PBH, -1); }
 
 Obj *obj_new(int kind, int x, int y) {
   for (int i = 0; i < MAX_OBJS; i++)
@@ -286,7 +287,7 @@ static void player_move(uint32_t keys, uint32_t pressed) {
     slide_dx = slide_dy = 0;
   }
   bool moved = false;
-  int sp = room_speed(pl.x + PBX + PBW / 2, pl.y + PBY + PBH / 2);
+  int sp = room_speed(pl.x + PBX + PBW / 2, pl.y + PBY + PBH / 2) * ch_walk; /* (cheat: 1 to 3 times) */
   for (int i = 0; i < sp; i++) {
     if (dx) moved |= step(dx, 0, !dy);
     if (dy) moved |= step(0, dy, !dx);
