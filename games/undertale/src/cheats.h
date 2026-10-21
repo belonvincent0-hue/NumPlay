@@ -12,7 +12,14 @@ extern int ch_crit;     /* the FIGHT bar always counts as dead centre */
 extern int ch_noattack; /* the monsters never attack */
 extern int ch_noenc;    /* no random encounters */
 extern int ch_noclip;   /* walls do not stop Frisk */
-extern int ch_walk;     /* 1, 2 or 3: Frisk's steps per frame */
+extern int ch_walk;     /* Frisk's steps per frame: 1, 2, 3 or 5 */
+extern int ch_spare;    /* every monster can always be spared */
+extern int ch_chip;     /* a hit takes 1 HP at most */
+extern int ch_slowbul;  /* the bullets move at half speed */
+extern int ch_infitems; /* food and bandages are not used up */
+extern int ch_gain;     /* EXP and gold won: 1, 2 or 5 times */
+extern int ch_healwin;  /* full HP after a battle won */
+extern int ch_killall;  /* a battle starts and ends: all dead */
 
 bool cheats_menu(void);       /* the menu: true if Home was pressed in it (the game saves and quits) */
 void cheats_tick(void);       /* after each game frame */
