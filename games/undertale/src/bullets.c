@@ -113,6 +113,7 @@ void bullets_update(void) {
   for (int i = 0; i < MAX_BULLETS; i++) {
     Bullet *b = &bullets[i];
     if (b->kind == BK_NONE) continue;
+    if (ch_slowbul && b->kind != BK_SCRIPT && (g_frame & 1)) continue; /* (cheat: half speed) */
     if (b->kind != BK_SCRIPT) b->t++;
     switch (b->kind) {
       case BK_LINEAR:
@@ -205,6 +206,7 @@ int damage_to_player(int at) {
 void soul_hurt(int dmg, int color) {
   (void)color;
   if (bt.inv || ch_god) return;
+  if (ch_chip && dmg > 1) dmg = 1; /* (cheat) */
   sv.hp = (int16_t)(sv.hp - dmg);
   if (sv.hp < 0) sv.hp = 0;
   if (ch_hp && sv.hp < 1) sv.hp = 1; /* (cheat) */
