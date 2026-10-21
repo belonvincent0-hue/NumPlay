@@ -14,6 +14,7 @@
 #include "../../common/epsilon_app.h"
 #include "../../common/epsilon_files.h"
 #include "../../common/np_text.h"
+#include "../../common/np_cheat.h"
 
 #ifdef __ELF__ /* app name and API level, for the calculator's installer */
 const char eadk_app_name[] __attribute__((section(".rodata.eadk_app_name"))) = "Minesweeper";
@@ -553,6 +554,8 @@ static void layout(void) {
 }
 
 /* ------------------------------------------------------------------ drawing the game */
+/* cheats (the menu opens with EXP) */
+static int ch_safe, ch_xray, ch_freeze;
 static int shown[3] = {-1000, -1000, -1}; /* on the counters and the face */
 static bool cur_on = true; /* no cursor after a game (like Windows) until an arrow is pressed */
 static void draw_cell(int i) {
@@ -586,6 +589,7 @@ static void draw_cell(int i) {
     if (st == FLAG) flag(s);
     else if (st == ASK) glyph(8, 0, 0, s, q);
   }
+  if (ch_xray && m && gs == G_PLAY && st != OPEN && st != FLAG) pfill(s / 2 - 1, s / 2 - 1, 3, 3, RED); /* cheat: a mine under it */
   push(bx + i % bw * s, by + i / bw * s, s);
 }
 /* the counters' panel: two LEDs and the face (drawn by update) */
@@ -703,6 +707,12 @@ static void lost(int i) {
   set_state(i, OPEN);
   ended(i);
 }
+/* cheat: a mine that would blow up is flagged instead */
+static void flagit(int i) {
+  if (state(i) != FLAG) flags++;
+  set_state(i, FLAG);
+  dirty(i);
+}
 static void play(int i) {
   int st = state(i), o[8], n = 0, boom = -1;
   if (st == FLAG) return;
@@ -719,11 +729,16 @@ static void play(int i) {
     if (!(cell[i] & 15) || f != (cell[i] & 15)) return;
     for (int j = 0; j < k; j++)
       if (state(o[j]) == HID || state(o[j]) == ASK) {
-        if (cell[o[j]] & MINE) boom = o[j];
-        else bfs[n++] = (uint16_t)o[j];
+        if (cell[o[j]] & MINE) {
+          if (ch_safe) flagit(o[j]);
+          else boom = o[j];
+        } else {
+          bfs[n++] = (uint16_t)o[j];
+        }
       }
   } else if (cell[i] & MINE) {
-    boom = i;
+    if (ch_safe) flagit(i);
+    else boom = i;
   } else {
     bfs[n++] = (uint16_t)i;
   }
@@ -751,6 +766,51 @@ static void move_to(int i) {
   if (was != i) draw_cell(was);
   draw_cell(i);
 }
+
+/* ------------------------------------------------------------------ cheats */
+static const char *ch_flag_all(void) {
+  if (gs != G_PLAY) return "COMMENCE D'ABORD UNE PARTIE";
+  for (int i = 0; i < bw * bh; i++)
+    if (cell[i] & MINE) flagit(i);
+  return "MINES MARQUEES";
+}
+static const char *ch_hint(void) {
+  if (gs != G_PLAY) return "COMMENCE D'ABORD UNE PARTIE";
+  int safe = 0;
+  for (int i = 0; i < bw * bh; i++) safe += !(cell[i] & MINE) && state(i) != OPEN && state(i) != FLAG;
+  if (!safe) return "RIEN A OUVRIR";
+  int pick = (int)(rnd() % (uint32_t)safe);
+  for (int i = 0; i < bw * bh; i++)
+    if (!(cell[i] & MINE) && state(i) != OPEN && state(i) != FLAG && !pick--) {
+      bfs[0] = (uint16_t)i;
+      open_cells(1);
+      break;
+    }
+  if (!left) won();
+  return "CASE SURE OUVERTE";
+}
+static const char *ch_win(void) {
+  if (gs != G_PLAY) return "COMMENCE D'ABORD UNE PARTIE";
+  int n = 0;
+  for (int i = 0; i < bw * bh; i++)
+    if (!(cell[i] & MINE) && state(i) != OPEN) bfs[n++] = (uint16_t)i;
+  if (n) open_cells(n);
+  if (!left) won();
+  return "PARTIE GAGNEE";
+}
+static const char *ch_zero(void) {
+  elapsed = 0;
+  return "CHRONO A 0";
+}
+static const np_cheat_t CHEATS[] = {
+    {"PAS D'EXPLOSION", NPC_TOGGLE, &ch_safe, 0, 0, 0},
+    {"MINES VISIBLES", NPC_TOGGLE, &ch_xray, 0, 0, 0},
+    {"CHRONO ARRETE", NPC_TOGGLE, &ch_freeze, 0, 0, 0},
+    {"MARQUER LES MINES", NPC_ACTION, 0, 0, 0, ch_flag_all},
+    {"OUVRIR UNE CASE SURE", NPC_ACTION, 0, 0, 0, ch_hint},
+    {"GAGNER LA PARTIE", NPC_ACTION, 0, 0, 0, ch_win},
+    {"CHRONO A 0", NPC_ACTION, 0, 0, 0, ch_zero},
+};
 
 /* ------------------------------------------------------------------ screens */
 enum { S_TITLE, S_GAME };
@@ -1004,6 +1064,12 @@ int main(void) {
     stuck &= k; /* Home quits unless held since the start, whatever else is held */
     if (k & ~stuck & K_HOME) break;
     if (leave) break;
+    if (np_cheat_key() && scr == S_GAME && dlg == D_NONE) {
+      if (np_cheat_menu("CHEATS DEMINEUR", CHEATS, 7)) break; /* Home in the menu */
+      draw_all();
+      held = 0, armed = false, last = (uint32_t)eadk_timing_millis(); /* the keys held now are not presses */
+      continue;
+    }
     if (!armed) armed = !k, k = 0;
     if (hit & arrows) repeat_at = now + 280, repeats = 0;
     else if ((k & arrows) && (int32_t)(now - repeat_at) >= 0) hit |= k & arrows, repeat_at = now + 55, repeats++;
@@ -1086,7 +1152,7 @@ int main(void) {
       if (ok || back) close_dialog();
     }
 
-    if (scr == S_GAME && gs == G_PLAY && dlg == D_NONE) elapsed += dt;
+    if (scr == S_GAME && gs == G_PLAY && dlg == D_NONE && !ch_freeze) elapsed += dt;
     /* OK held on a number where it was pressed: its hidden neighbors go down */
     int h = scr == S_GAME && !dlg && gs == G_PLAY && (k & K_OK) && cur == grip ? cur : -1;
     if (h != held_on) {
