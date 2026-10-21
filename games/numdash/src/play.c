@@ -2,6 +2,7 @@
  * pause menu, the new-best popup and the level complete sequence (end wall
  * rays, rings and fireworks, then the level complete window). Timings follow
  * Geometry Dash (and the gd3ds recreation). */
+#include "cheats.h"
 #include "app.h"
 #include "ui.h"
 #include <math.h>
@@ -269,7 +270,8 @@ void play_tick(void) {
     if (app_hit(K_CHECK)) place_checkpoint();
     if (app_hit(K_ERASE) && app.checkpoint_count) app.checkpoint_count--;
   }
-  bool hold = (app.keys & (K_OK | K_EXE | K_UP)) != 0;
+  bool hold = (app.keys & (K_OK | K_EXE | K_UP)) != 0 || ch_hold;
+  cheats_tick();
   game_step(g, hold);
   app.session_ticks++;
   if (g->dead) {
